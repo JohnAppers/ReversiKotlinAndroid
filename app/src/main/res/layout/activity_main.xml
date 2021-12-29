@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity"
+    android:orientation="vertical"
+    android:background="@color/bg_yellow">
+
+    <TextView
+        android:id="@+id/tvJogador"
+        android:layout_width="wrap_content"
+        android:layout_height="50dp"
+        android:layout_gravity="center"
+        android:text="@string/jogador_atual"
+        />
+
+    <GridLayout
+        android:id="@+id/gridLayout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:columnCount="8"
+        android:rowCount="8"
+        />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_gravity="center"
+        android:paddingTop="20dp">
+
+        <Button
+            android:id="@+id/btnAtivarBomba"
+            android:layout_width="130dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:backgroundTint="@color/black"
+            android:text="Ativar bomba"
+            android:textSize="11sp"
+            />
+
+        <Button
+            android:id="@+id/btnAtivarTroca"
+            android:layout_width="130dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:backgroundTint="@color/black"
+            android:text="Ativar troca"
+            android:textSize="11sp"
+            />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_gravity="center">
+
+        <Button
+            android:id="@+id/btnOptJogadas"
+            android:layout_width="130dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_margin="10dp"
+            android:backgroundTint="@color/black"
+            android:text="Ver jogadas"
+            android:textSize="11sp"
+            app:icon="@drawable/ic_baseline_help_outline_24" />
+
+        <Button
+            android:id="@+id/btnPassarVez"
+            android:layout_width="130dp"
+            android:layout_height="wrap_content"
+            android:text="Passar vez"
+            android:textSize="11sp"
+            android:backgroundTint="@color/black"
+            android:layout_margin="10dp"
+            android:visibility="gone"
+            />
+    </LinearLayout>
+
+
+</LinearLayout>

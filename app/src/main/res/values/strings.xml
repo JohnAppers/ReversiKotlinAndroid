@@ -1,0 +1,13 @@
+<resources>
+    <string name="jogador_atual">"Vez das pecas %1$s jogarem."</string>
+    <string name="frase_vencedor">"O jogador %1$s ganhou!"</string>
+    <string name="app_name">"Reversi Othello"</string>
+    <string name="msg_ip_address">IP do servidor: %s\nÀ espera dos jogadores…</string>
+    <string name="modo_servidor">Servidor</string>
+    <string name="client_mode">Modo cliente</string>
+    <string name="ask_ip">Endereco do servidor:</string>
+    <string name="button_connect">Conectar</string>
+    <string name="error_address">Endereco invalido</string>
+    <string name="button_cancel">Cancelar</string>
+    <string name="btn_emulator">Conectar a emulador</string>
+</resources>
