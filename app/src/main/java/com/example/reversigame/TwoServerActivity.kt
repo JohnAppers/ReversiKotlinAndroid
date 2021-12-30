@@ -218,11 +218,17 @@ class TwoServerActivity : AppCompatActivity() {
             serverSocket = ServerSocket(SERVER_PORT)
             serverSocket?.apply {
                 try {
+                    if(serverSocket == null)
+                        Log.d("TagSocketError","Socket is null")
+                    Log.d("TagCheck","A espera do cliente em "+serverSocket!!.inetAddress.hostAddress)
                     socket = serverSocket!!.accept()
+                    Log.d("TagSuccess", "Cliente conectado.")
                     leMensagem()
-                } catch (_: Exception) {
+                }
+                catch (_: Exception) {
                     Log.d("Erro", "Conexao falhou")
-                } finally {
+                }
+                finally {
                     serverSocket?.close()
                 }
             }
@@ -236,9 +242,11 @@ class TwoServerActivity : AppCompatActivity() {
                 val mensagem: JSONObject
                 val mensagemString : String
                 if (jogadorDois.equals("")) {
+                    Log.d("TagCheck", "A espera de nome...")
                     mensagemString = bufferIn.readLine()
                     mensagem = JSONObject(mensagemString)
                     jogadorDois = mensagem["nome"].toString()
+                    Log.d("TagCheck","Nome recebido: "+jogadorDois)
                     dlg?.dismiss()
                 } else {
                     mensagemString = bufferIn.readLine()
@@ -250,8 +258,8 @@ class TwoServerActivity : AppCompatActivity() {
                     if(mensagem["jogada"].equals("troca"))
                         setTrocaClient(mensagem)
                 }
-            } catch (_: Exception) {
-                Log.d("Erro", "leMensagem falhou")
+            } catch (e: Exception) {
+                Log.d("Erro", "leMensagem falhou: "+e.toString())
             }
         }
     }

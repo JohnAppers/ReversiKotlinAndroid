@@ -6,7 +6,6 @@ import android.text.InputFilter
 import android.text.Spanned
 import android.util.Log
 import android.util.Patterns
-import android.view.View
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.Toast
@@ -21,6 +20,9 @@ import java.io.PrintStream
 import java.net.InetSocketAddress
 import java.net.Socket
 import kotlin.concurrent.thread
+
+
+
 
 class TwoClientActivity : AppCompatActivity() {
 
@@ -127,14 +129,32 @@ class TwoClientActivity : AppCompatActivity() {
         dlg.show()
     }
 
-    private fun iniciaCliente(ip: String, port: Int = SERVER_PORT) {
+    private fun iniciaCliente(ip: String, port: Int = SERVER_PORT-1) {
         thread{
             try {
                 socket = Socket()
                 socket!!.connect(InetSocketAddress(ip,port),5000)
                 connectFlag = true
-            } catch (_: Exception) {
-                //TODO close sockets
+                enviaNome()
+            } catch (e: Exception) {
+                Log.e("SocketError", ""+e)
+            }
+        }
+    }
+
+    fun enviaNome(){
+        socket!!.getOutputStream()?.run {
+            thread {
+                try {
+                    val printStream = PrintStream(this)
+                    val json = JSONObject()
+                    json.put("nome", "playerdois") // TODO enviar nome
+                    printStream.println(json.toString())
+                    printStream.flush()
+                    Log.d("TagCheck","Nome enviado")
+                } catch (e: Exception) {
+                    Log.d("TagSocketError", e.toString())
+                }
             }
         }
     }
