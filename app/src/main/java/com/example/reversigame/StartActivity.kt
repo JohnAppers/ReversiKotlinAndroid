@@ -1,7 +1,8 @@
-package com.example.reversigame;
+package com.example.reversigame
 
 import android.content.Intent
 import android.os.Bundle
+import android.provider.MediaStore
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.example.reversigame.databinding.ActivityStartBinding
@@ -41,5 +42,13 @@ class StartActivity : AppCompatActivity(){
             intent.putExtra(MainActivity.jogadorUm, jogadorUm)
             startActivity(intent)
         }
+
+        b.profilePhoto.setOnClickListener {
+            tirarFoto()
+        }
+    }
+
+    private fun tirarFoto() {
+        
     }
 }

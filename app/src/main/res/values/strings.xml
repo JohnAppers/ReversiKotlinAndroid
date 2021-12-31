@@ -10,4 +10,17 @@
     <string name="error_address">Endereco invalido</string>
     <string name="button_cancel">Cancelar</string>
     <string name="btn_emulator">Conectar a emulador</string>
+    <string name="game_over">Fim do jogo</string>
+    <string name="menu_inicial">Menu inicial</string>
+    <string name="ativar_bomba">Ativar bomba</string>
+    <string name="ativar_troca">Ativar troca</string>
+    <string name="ver_jogadas">Ver jogadas</string>
+    <string name="passar_vez">Passar vez</string>
+    <string name="game_title">Othello / Reversi</string>
+    <string name="modo_local">Modo local</string>
+    <string name="modo_remoto">Modo remoto</string>
+    <string name="servidor">Servidor</string>
+    <string name="cliente">Cliente</string>
+    <string name="modo_remoto_3_jogadores">Modo remoto 3 jogadores</string>
+    <string name="gamelogo">logoJogo</string>
 </resources>

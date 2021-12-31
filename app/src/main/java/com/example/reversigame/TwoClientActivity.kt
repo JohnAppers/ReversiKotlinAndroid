@@ -2,9 +2,7 @@ package com.example.reversigame
 
 import android.content.DialogInterface
 import android.content.Intent
-import android.opengl.Visibility
 import android.os.Bundle
-import android.os.Handler
 import android.text.InputFilter
 import android.text.Spanned
 import android.util.Log
@@ -31,19 +29,20 @@ import kotlin.concurrent.thread
 
 class TwoClientActivity : AppCompatActivity() {
 
-    lateinit var b : ActivityTwoclientBinding
-    lateinit var listaPosicoes : List<List<ImageView>>
+    private lateinit var b : ActivityTwoclientBinding
+    private lateinit var listaPosicoes : List<List<ImageView>>
 
-    var socket: Socket? = null
-    var jogadorUm = ""
-    var jogadorDois = ""
-    var buttonFlag = 0
-    var isConnected = false
-    var mostrarJogadas = true
-    var isMinhaVez = false
-    var isGameOver = false
-    var listaMudancas: MutableList<Posicao> = mutableListOf()
-    var listaJogadas: MutableList<Posicao> = mutableListOf()
+    private var socket: Socket? = null
+    private var jogadorUm = ""
+    private var jogadorDois = ""
+    private var buttonFlag = 0
+    private var trocas = 0
+    private var isConnected = false
+    private var mostrarJogadas = true
+    private var isMinhaVez = false
+    private var isGameOver = false
+    private var listaMudancas: MutableList<Posicao> = mutableListOf()
+    private var listaJogadas: MutableList<Posicao> = mutableListOf()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,8 +51,8 @@ class TwoClientActivity : AppCompatActivity() {
         setContentView(view)
 
         jogadorDois = intent.getStringExtra(MainActivity.jogadorUm).toString()
-        listaPosicoes = arrayOfNulls<List<ImageView>>(8).mapIndexed { fila, lista ->
-            arrayOfNulls<ImageView>(8).mapIndexed { coluna, imageButton ->
+        listaPosicoes = arrayOfNulls<List<ImageView>>(8).mapIndexed { fila, _ ->
+            arrayOfNulls<ImageView>(8).mapIndexed { coluna, _ ->
                 val posicao = layoutInflater.inflate(R.layout.posicao,null)
                 posicao.setOnClickListener {
                     if(buttonFlag==0 && isConnected && isMinhaVez){
@@ -79,8 +78,36 @@ class TwoClientActivity : AppCompatActivity() {
                 mostraJogadas()
             }
         }
+        b.btnAtivarBomba.setOnClickListener {
+            if(buttonFlag == 0 && isMinhaVez) {
+                buttonFlag = 1
+                it.visibility = View.GONE
+            }
+        }
+        b.btnAtivarTroca.setOnClickListener {
+            if(buttonFlag == 0 && isMinhaVez) {
+                buttonFlag = 2
+                it.visibility = View.GONE
+            }
+        }
+        b.btnPassarVez.setOnClickListener {
+            passarVez()
+        }
 
         setupDialogo()
+    }
+
+    private fun passarVez() {
+        try{
+            val printStream = PrintStream(socket!!.getOutputStream())
+            val mensagem = JSONObject()
+            mensagem.put("assunto","skip")
+            printStream.println(mensagem)
+            printStream.flush()
+        }
+        catch (e: Exception){
+            Log.d("TagError", "passarVez falhou: $e")
+        }
     }
 
     private fun leMensagens() {
@@ -109,8 +136,10 @@ class TwoClientActivity : AppCompatActivity() {
                         terminaJogo(jogadorUm)
                 }
                 else if(mensagem["assunto"].equals("troca")){
-                    if(mensagem["peca"].equals("preta"))
+                    if(mensagem["peca"].equals("preta")){
                         setJogada(Posicao(mensagem.getInt("fila"),mensagem.getInt("coluna"),Peca.PRETA))
+                        trocas++
+                    }
                     else
                         setJogada(Posicao(mensagem.getInt("fila"),mensagem.getInt("coluna"),Peca.BRANCA))
                 }
@@ -124,10 +153,16 @@ class TwoClientActivity : AppCompatActivity() {
                         listaMudancas.add(Posicao(filaNova,colunaNova,Peca.VAZIA))
                     }
                     listaMudancas.forEach{ setJogada(it) }
-                    if(mensagem["centropeca"].equals("preta"))
+                    if(mensagem["centropeca"].equals("preta")){
                         setJogada(Posicao(mensagem.getInt("centrofila"),mensagem.getInt("centrocoluna"),Peca.PRETA))
-                    else
+                    }
+                    else{
                         setJogada(Posicao(mensagem.getInt("centrofila"),mensagem.getInt("centrocoluna"),Peca.BRANCA))
+                    }
+                    checkVez(mensagem)
+                    checkJogadas(mensagem)
+                }
+                else if(mensagem["assunto"].equals("skip")){
                     checkVez(mensagem)
                     checkJogadas(mensagem)
                 }
@@ -142,26 +177,25 @@ class TwoClientActivity : AppCompatActivity() {
     }
 
     private fun checkJogadas(mensagem: JSONObject) {
-        this@TwoClientActivity.runOnUiThread(Runnable {
-            if(mensagem["semjogadas"].equals("true")){
+        this@TwoClientActivity.runOnUiThread {
+            if (mensagem["semjogadas"].equals("true")) {
                 b.btnPassarVez.visibility = View.VISIBLE
-            }
-            else{
+            } else {
                 b.btnPassarVez.visibility = View.GONE
                 val jogadas = mensagem.getJSONArray("jogadas")
                 listaJogadas.clear()
-                for(pos in 0 until jogadas.length()){
+                for (pos in 0 until jogadas.length()) {
                     val posicao = jogadas.getJSONObject(pos)
                     val filaNova = posicao.getInt("fila")
                     val colunaNova = posicao.getInt("coluna")
-                    listaJogadas.add(Posicao(filaNova,colunaNova,Peca.BRANCA))
+                    listaJogadas.add(Posicao(filaNova, colunaNova, Peca.BRANCA))
                 }
-                if(mostrarJogadas) {
+                if (mostrarJogadas) {
                     apagaJogadas()
                     mostraJogadas()
                 }
             }
-        })
+        }
     }
 
     private fun checkMudancas(mensagem: JSONObject) {
@@ -171,11 +205,10 @@ class TwoClientActivity : AppCompatActivity() {
             val posicao = jogadas.getJSONObject(pos)
             val filaNova = posicao.getInt("fila")
             val colunaNova = posicao.getInt("coluna")
-            var peca : Peca
-            if(posicao.getString("peca").equals("branca"))
-                peca = Peca.BRANCA
+            val peca : Peca = if(posicao.getString("peca").equals("branca"))
+                Peca.BRANCA
             else
-                peca = Peca.PRETA
+                Peca.PRETA
             listaMudancas.add(Posicao(filaNova,colunaNova,peca))
 
         }
@@ -209,7 +242,7 @@ class TwoClientActivity : AppCompatActivity() {
                     source?.run {
                         var ret = ""
                         forEach {
-                            if (it.isDigit() || it.equals('.'))
+                            if (it.isDigit() || it == '.')
                                 ret += it
                         }
                         return ret
@@ -255,7 +288,7 @@ class TwoClientActivity : AppCompatActivity() {
                 enviaNome()
             }
         } catch (e: Exception) {
-            Log.e("TagSocketError", "Falha ao abrir socket: "+e)
+            Log.e("TagSocketError", "Falha ao abrir socket: $e")
         }
     }
 
@@ -264,7 +297,7 @@ class TwoClientActivity : AppCompatActivity() {
             try {
                 val printStream = PrintStream(this)
                 val json = JSONObject()
-                json.put("nome", "playerdois") // TODO enviar nome
+                json.put("nome", jogadorUm)
                 printStream.println(json.toString())
                 printStream.flush()
                 Log.d("TagCheck","Nome enviado")
@@ -276,7 +309,7 @@ class TwoClientActivity : AppCompatActivity() {
     }
 
     private fun apagaJogadas(){
-        listaPosicoes.flatMap { it }.forEach{ it.setBackgroundColor(ContextCompat.getColor(this, R.color.purple_700)) }
+        listaPosicoes.flatten().forEach{ it.setBackgroundColor(ContextCompat.getColor(this, R.color.purple_700)) }
     }
 
     private fun mostraJogadas(){
@@ -286,23 +319,24 @@ class TwoClientActivity : AppCompatActivity() {
     }
 
     private fun setStringJogador(){
-        this@TwoClientActivity.runOnUiThread(Runnable {
-            if(isMinhaVez)
-                findViewById<TextView>(R.id.tvJogador).text = getString(R.string.jogador_atual, jogadorUm)
+        this@TwoClientActivity.runOnUiThread {
+            if (isMinhaVez)
+                findViewById<TextView>(R.id.tvJogador).text =
+                    getString(R.string.jogador_atual, jogadorUm)
             else
-                findViewById<TextView>(R.id.tvJogador).text = getString(R.string.jogador_atual, jogadorDois)
-        })
+                findViewById<TextView>(R.id.tvJogador).text =
+                    getString(R.string.jogador_atual, jogadorDois)
+        }
     }
 
     private fun setJogada(pos: Posicao){
-        this@TwoClientActivity.runOnUiThread(Runnable {
-            if(pos.peca == Peca.BRANCA)
-                listaPosicoes[pos.fila][pos.coluna].setImageResource(R.drawable.white_stone)
-            else if(pos.peca == Peca.PRETA)
-                listaPosicoes[pos.fila][pos.coluna].setImageResource(R.drawable.black_stone)
-            else
-                listaPosicoes[pos.fila][pos.coluna].setImageDrawable(null)
-        })
+        this@TwoClientActivity.runOnUiThread {
+            when (pos.peca) {
+                Peca.BRANCA -> listaPosicoes[pos.fila][pos.coluna].setImageResource(R.drawable.white_stone)
+                Peca.PRETA -> listaPosicoes[pos.fila][pos.coluna].setImageResource(R.drawable.black_stone)
+                else -> listaPosicoes[pos.fila][pos.coluna].setImageDrawable(null)
+            }
+        }
     }
 
     private fun onClickPosicao(fila: Int,coluna: Int){
@@ -316,17 +350,46 @@ class TwoClientActivity : AppCompatActivity() {
                 json.put("coluna", coluna)
                 printStream.println(json.toString())
                 printStream.flush()
-            } catch (_: Exception) {
-                Log.d("TagError", "onClickPosicao falhou")
+            } catch (e: Exception) {
+                Log.d("TagError", "onClickPosicao falhou: $e")
             }
         }
     }
 
-    fun onClickBomba(fila: Int,coluna: Int){
-
+    private fun onClickBomba(fila: Int, coluna: Int){
+        thread{
+            try {
+                val printStream = PrintStream(socket!!.getOutputStream())
+                val json = JSONObject()
+                json.put("assunto", "jogada")
+                json.put("jogada","bomba")
+                json.put("fila", fila)
+                json.put("coluna", coluna)
+                printStream.println(json.toString())
+                printStream.flush()
+                buttonFlag = 0
+            } catch (e: Exception) {
+                Log.d("TagError", "onClickBomba falhou: $e")
+            }
+        }
     }
 
-    fun onClickTroca(fila: Int,coluna: Int){
-
+    private fun onClickTroca(fila: Int, coluna: Int){
+        thread{
+            try {
+                val printStream = PrintStream(socket!!.getOutputStream())
+                val json = JSONObject()
+                json.put("assunto", "jogada")
+                json.put("jogada","troca")
+                json.put("fila", fila)
+                json.put("coluna", coluna)
+                printStream.println(json.toString())
+                printStream.flush()
+                if(trocas == 2)
+                    buttonFlag = 0
+            } catch (e: Exception) {
+                Log.d("TagError", "onClickTroca falhou: $e")
+            }
+        }
     }
 }

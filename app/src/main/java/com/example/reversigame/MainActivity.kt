@@ -19,8 +19,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val jogo:Tabuleiro = Tabuleiro()
-    private val ROWS = jogo.ROWS
-    private val COLUMNS = jogo.COLUMNS
+    private val filasTabuleiro = jogo.ROWS
+    private val colunasTabuleiro = jogo.COLUMNS
 
     private var jogadorAtual = Peca.PRETA
     private var mostrarJogadas = true
@@ -43,8 +43,8 @@ class MainActivity : AppCompatActivity() {
 
         jogadorUm = intent.getStringExtra(jogadorUm).toString()
 
-        listaPosicoes = arrayOfNulls<List<ImageView>>(ROWS).mapIndexed { fila, lista ->
-                arrayOfNulls<ImageView>(COLUMNS).mapIndexed { coluna, imageButton ->
+        listaPosicoes = arrayOfNulls<List<ImageView>>(filasTabuleiro).mapIndexed { fila, _ ->
+                arrayOfNulls<ImageView>(colunasTabuleiro).mapIndexed { coluna, _ ->
                     val posicao = layoutInflater.inflate(R.layout.posicao,null)
                     posicao.setOnClickListener {
                         if(buttonFlag==0){
@@ -108,7 +108,7 @@ class MainActivity : AppCompatActivity() {
         mostraJogadas()
     }
 
-    fun setJogada(pos: Posicao){
+    private fun setJogada(pos: Posicao){
         jogo.setPosicao(pos)
         if(pos.peca == Peca.PRETA)
             listaPosicoes[pos.fila][pos.coluna].setImageResource(R.drawable.black_stone)
@@ -116,14 +116,14 @@ class MainActivity : AppCompatActivity() {
             listaPosicoes[pos.fila][pos.coluna].setImageResource(R.drawable.white_stone)
     }
 
-    fun setStringJogador(){
+    private fun setStringJogador(){
         if(jogadorAtual == Peca.PRETA)
             findViewById<TextView>(R.id.tvJogador).text = getString(R.string.jogador_atual, jogadorUm)
         else
             findViewById<TextView>(R.id.tvJogador).text = getString(R.string.jogador_atual,"dois")
     }
 
-    fun proximoJogador(){
+    private fun proximoJogador(){
         jogadorAtual = jogadorAtual.proximo()
         setStringJogador()
         if(jogadorAtual == Peca.PRETA){
@@ -148,18 +148,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun mostraJogadas(){
-        if(mostrarJogadas == false) return
+    private fun mostraJogadas(){
+        if(!mostrarJogadas) return
         jogo.getPosicoesValidas(jogadorAtual).forEach{
             listaPosicoes[it.fila][it.coluna].setBackgroundColor(ContextCompat.getColor(this, R.color.purple_500))
         }
     }
 
-    fun apagaJogadas(){
-        listaPosicoes.flatMap { it }.forEach{ it.setBackgroundColor(ContextCompat.getColor(this, R.color.purple_700)) }
+    private fun apagaJogadas(){
+        listaPosicoes.flatten().forEach{ it.setBackgroundColor(ContextCompat.getColor(this, R.color.purple_700)) }
     }
 
-    fun verificaJogadaPossivel(jogador:Peca){
+    private fun verificaJogadaPossivel(jogador:Peca){
         if(jogo.getPosicoesValidas(jogador).isNotEmpty()) {
             semJogadas = false
             b.btnPassarVez.visibility = View.GONE
@@ -170,7 +170,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun onClickPosicao(fila:Int, coluna:Int){
+    private fun onClickPosicao(fila:Int, coluna:Int){
         val novaPosicao = Posicao(fila, coluna, jogadorAtual)
 
         if(!jogo.isPosicaoValida(novaPosicao))
@@ -192,7 +192,7 @@ class MainActivity : AppCompatActivity() {
         verificaJogadaPossivel(jogadorAtual)
     }
 
-    fun onClickBomba(fila:Int, coluna:Int){
+    private fun onClickBomba(fila:Int, coluna:Int){
         buttonFlag = 0
         val novaPosicao = Posicao(fila, coluna, jogadorAtual)
         setJogada(novaPosicao)
@@ -204,7 +204,7 @@ class MainActivity : AppCompatActivity() {
         verificaJogadaPossivel(jogadorAtual)
     }
 
-    fun onClickTroca(fila: Int, coluna: Int){
+    private fun onClickTroca(fila: Int, coluna: Int){
         if(jogo.getPeca(fila,coluna) == jogadorAtual && nTrocaPecas < 2){
             if(jogo.getPeca(fila,coluna)==Peca.BRANCA)
                 listaPosicoes[fila][coluna].setImageResource(R.drawable.black_stone)
