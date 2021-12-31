@@ -5,6 +5,7 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.net.wifi.WifiManager
 import android.os.Bundle
+import android.os.Handler
 import android.util.Log
 import android.view.Gravity
 import android.view.View
@@ -22,7 +23,6 @@ import com.example.reversigame.model.Tabuleiro
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.PrintStream
-import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 import kotlin.concurrent.thread
@@ -35,13 +35,14 @@ class TwoServerActivity : AppCompatActivity() {
     private var dlg: AlertDialog? = null
     private var serverSocket: ServerSocket? = null
     private var socket: Socket? = null
-    private var jogadorThread: Thread? = null
 
     private val jogo: Tabuleiro = Tabuleiro()
     private lateinit var listaPosicoes: List<List<ImageView>>
     private var jogadorAtual = Peca.PRETA
     private var jogadorUm = ""
     private var jogadorDois = ""
+    private val ROWS = jogo.ROWS
+    private val COLUMNS = jogo.COLUMNS
     private var buttonFlag = 0
     private var bombPecasPretas = 1
     private var bombPecasBrancas = 1
@@ -49,7 +50,8 @@ class TwoServerActivity : AppCompatActivity() {
     private var trocaPecasBrancas = 1
     private var nTrocaPecas = 0
     private var mostrarJogadas = true
-    private var semJogadas = false
+    private var isSemJogadas = false
+    private var isGameOver = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,7 +88,7 @@ class TwoServerActivity : AppCompatActivity() {
             }
         }
         b.btnPassarVez.setOnClickListener {
-            if(semJogadas && jogadorAtual == Peca.PRETA){
+            if(isSemJogadas && jogadorAtual == Peca.PRETA){
                 apagaJogadas()
                 proximoJogador()
                 mostraJogadas()
@@ -109,59 +111,83 @@ class TwoServerActivity : AppCompatActivity() {
         }
 
         setupDialogo()
+        iniciaServidor()
+        getPosicoesInicio().forEach { setJogada(Posicao(it.fila,it.coluna,it.peca)) }
+        if((0..1).random() == 1)
+            proximoJogador()
+        setStringJogador()
+        mostraJogadas()
     }
 
     fun setJogada(pos: Posicao){
-        jogo.setPosicao(pos)
-        if(pos.peca == Peca.PRETA)
-            listaPosicoes[pos.fila][pos.coluna].setImageResource(R.drawable.black_stone)
-        else
-            listaPosicoes[pos.fila][pos.coluna].setImageResource(R.drawable.white_stone)
+        this@TwoServerActivity.runOnUiThread(Runnable {
+            jogo.setPosicao(pos)
+            if(pos.peca == Peca.PRETA)
+                listaPosicoes[pos.fila][pos.coluna].setImageResource(R.drawable.black_stone)
+            else
+                listaPosicoes[pos.fila][pos.coluna].setImageResource(R.drawable.white_stone)
+        })
     }
 
     fun proximoJogador(){
-        jogadorAtual = jogadorAtual.proximo()
-        setStringJogador()
-        if(jogadorAtual == Peca.PRETA){
-            if(bombPecasPretas == 0)
-                b.btnAtivarBomba.visibility = View.GONE
+        this@TwoServerActivity.runOnUiThread(Runnable {
+            jogadorAtual = jogadorAtual.proximo()
+            setStringJogador()
+            if(jogadorAtual == Peca.PRETA){
+                if(bombPecasPretas == 0)
+                    b.btnAtivarBomba.visibility = View.GONE
+                else
+                    b.btnAtivarBomba.visibility = View.VISIBLE
+                if(trocaPecasPretas == 0)
+                    b.btnAtivarTroca.visibility = View.GONE
+                else
+                    b.btnAtivarTroca.visibility = View.VISIBLE
+            }
             else
-                b.btnAtivarBomba.visibility = View.VISIBLE
-            if(trocaPecasPretas == 0)
                 b.btnAtivarTroca.visibility = View.GONE
-            else
-                b.btnAtivarTroca.visibility = View.VISIBLE
-        }
-        else
-            b.btnAtivarTroca.visibility = View.GONE
+        })
     }
 
     fun setStringJogador(){
-        if(jogadorAtual == Peca.PRETA)
-            findViewById<TextView>(R.id.tvJogador).text = getString(R.string.jogador_atual, jogadorUm)
-        else
-            findViewById<TextView>(R.id.tvJogador).text = getString(R.string.jogador_atual, jogadorDois)
+        this@TwoServerActivity.runOnUiThread(Runnable {
+            if(jogadorAtual == Peca.PRETA)
+                findViewById<TextView>(R.id.tvJogador).text = getString(R.string.jogador_atual, jogadorUm)
+            else
+                findViewById<TextView>(R.id.tvJogador).text = getString(R.string.jogador_atual, jogadorDois)
+        })
+    }
+
+    fun getPosicoesInicio():List<Posicao>{
+        return listOf(Posicao(COLUMNS/2-1,ROWS/2-1,Peca.BRANCA),
+            Posicao(COLUMNS/2,ROWS/2-1,Peca.PRETA),
+            Posicao(COLUMNS/2-1,ROWS/2,Peca.PRETA),
+            Posicao(COLUMNS/2,ROWS/2,Peca.BRANCA)
+        )
     }
 
     fun mostraJogadas(){
-        if(mostrarJogadas == false) return
-        jogo.getPosicoesValidas(jogadorAtual).forEach{
-            listaPosicoes[it.fila][it.coluna].setBackgroundColor(ContextCompat.getColor(this, R.color.purple_500))
-        }
+        this@TwoServerActivity.runOnUiThread(Runnable {
+            if(mostrarJogadas == true)
+                jogo.getPosicoesValidas(jogadorAtual).forEach{
+                listaPosicoes[it.fila][it.coluna].setBackgroundColor(ContextCompat.getColor(this, R.color.purple_500))
+            }
+        })
     }
 
     fun apagaJogadas(){
-        listaPosicoes.flatMap { it }.forEach{ it.setBackgroundColor(ContextCompat.getColor(this, R.color.purple_700)) }
+        this@TwoServerActivity.runOnUiThread(Runnable {
+            listaPosicoes.flatMap { it }.forEach{ it.setBackgroundColor(ContextCompat.getColor(this, R.color.purple_700)) }
+        })
     }
 
     fun verificaJogadaPossivel(jogador:Peca){
         if(jogo.getPosicoesValidas(jogador).isNotEmpty()) {
-            semJogadas = false
+            isSemJogadas = false
             if(jogador == Peca.PRETA)
                 b.btnPassarVez.visibility = View.GONE
         }
         else{
-            semJogadas = true
+            isSemJogadas = true
             if(jogador == Peca.PRETA)
                 b.btnPassarVez.visibility = View.VISIBLE
         }
@@ -209,7 +235,6 @@ class TwoServerActivity : AppCompatActivity() {
             }
             create()
         }
-        iniciaServidor()
         dlg?.show()
     }
 
@@ -220,10 +245,11 @@ class TwoServerActivity : AppCompatActivity() {
                 try {
                     if(serverSocket == null)
                         Log.d("TagSocketError","Socket is null")
-                    Log.d("TagCheck","A espera do cliente em "+serverSocket!!.inetAddress.hostAddress)
+                    Log.d("TagCheck","A espera do cliente em "+serverSocket!!.inetAddress.toString())
                     socket = serverSocket!!.accept()
                     Log.d("TagSuccess", "Cliente conectado.")
                     leMensagem()
+                    setupCliente()
                 }
                 catch (_: Exception) {
                     Log.d("Erro", "Conexao falhou")
@@ -235,42 +261,79 @@ class TwoServerActivity : AppCompatActivity() {
         }
     }
 
+    fun setupCliente() {
+        val mensagem = JSONObject()
+        mensagem.put("assunto","setup")
+        mensagem.put("nome",jogadorUm)
+        if(jogadorAtual == Peca.PRETA)
+            mensagem.put("vez","server")
+        else
+            mensagem.put("vez","client")
+        mensagem.put("mudancas",getPosJsonArray(getPosicoesInicio()))
+        mensagem.put("jogadas",getPosJsonArray(jogo.getPosicoesValidas(jogadorAtual)))
+        mensagem.put("semjogadas","false")
+        enviaMensagem(mensagem)
+    }
+
+    fun getPosJsonArray(lista: List<Posicao>): JSONArray {
+        val arrayPos = JSONArray()
+        lista.forEach {
+            val jsonObject = JSONObject()
+            jsonObject.put("fila", it.fila)
+            jsonObject.put("coluna", it.coluna)
+            if(it.peca == Peca.BRANCA)
+                jsonObject.put("peca","branca")
+            else
+                jsonObject.put("peca","preta")
+            arrayPos.put(jsonObject)
+        }
+        return arrayPos
+    }
+
     fun leMensagem(){
         thread {
-            try {
-                val bufferIn = socket!!.getInputStream().bufferedReader()
-                val mensagem: JSONObject
-                val mensagemString : String
-                if (jogadorDois.equals("")) {
-                    Log.d("TagCheck", "A espera de nome...")
+            while(!isGameOver) {
+                try {
+                    val bufferIn = socket!!.getInputStream().bufferedReader()
+                    var mensagem: JSONObject
+                    var mensagemString: String
+                    if (jogadorDois.equals("")) {
+                        Log.d("TagCheck", "A espera de nome...")
+                        mensagemString = bufferIn.readLine()
+                        mensagem = JSONObject(mensagemString)
+                        jogadorDois = mensagem["nome"].toString()
+                        Log.d("TagCheck", "Nome recebido: " + jogadorDois)
+                        dlg?.dismiss()
+                        continue
+                    }
                     mensagemString = bufferIn.readLine()
                     mensagem = JSONObject(mensagemString)
-                    jogadorDois = mensagem["nome"].toString()
-                    Log.d("TagCheck","Nome recebido: "+jogadorDois)
-                    dlg?.dismiss()
-                } else {
-                    mensagemString = bufferIn.readLine()
-                    mensagem = JSONObject(mensagemString)
-                    if(mensagem["jogada"].equals("normal"))
-                        setJogadaClient(mensagem)
-                    if(mensagem["jogada"].equals("bomba"))
-                        setBombaClient(mensagem)
-                    if(mensagem["jogada"].equals("troca"))
-                        setTrocaClient(mensagem)
+                    Log.d("TagJson", "Mensagem recebida, jogada: "+mensagem["assunto"].toString())
+                    if(mensagem["assunto"].equals("jogada")){
+                        if (mensagem["jogada"].equals("normal"))
+                            setJogadaClient(mensagem)
+                        if (mensagem["jogada"].equals("bomba"))
+                            setBombaClient(mensagem)
+                        if (mensagem["jogada"].equals("troca"))
+                            setTrocaClient(mensagem)
+                    }
+
+                } catch (e: Exception) {
+                    Log.d("Erro", "leMensagem falhou: " + e.toString())
                 }
-            } catch (e: Exception) {
-                Log.d("Erro", "leMensagem falhou: "+e.toString())
             }
         }
     }
 
     fun enviaMensagem(mensagem: JSONObject){
         try{
-            val printStream = PrintStream(socket!!.getOutputStream())
-            printStream.println(mensagem.toString())
-            printStream.flush()
-        }catch(_: Exception){
-            Log.d("Erro", "enviaMensagem falhou")
+            thread {
+                val printStream = PrintStream(socket!!.getOutputStream())
+                printStream.println(mensagem.toString())
+                printStream.flush()
+            }
+        }catch(e: Exception){
+            Log.d("TagError", "enviaMensagem falhou: "+e)
         }
     }
 
@@ -280,39 +343,30 @@ class TwoServerActivity : AppCompatActivity() {
         val novaPosicao = Posicao(fila, coluna, Peca.BRANCA)
 
         if (!jogo.isPosicaoValida(novaPosicao)) {
-            val resposta = JSONObject()
-            resposta.put("valida", "false")
-            enviaMensagem(resposta)
+            return;
         }
-
         val lista = jogo.getListasValidas(novaPosicao).plus(novaPosicao)
         lista.forEach{ setJogada(Posicao(it.fila,it.coluna,jogadorAtual)) }
 
-        val jogadas = JSONArray(lista)
-        val resposta = JSONObject()
-        resposta.put("jogadas", jogadas)
-
         if(jogo.isFinalJogo()){
-            resposta.put("final","true")
-            val intent = Intent(this,GameOverActivity::class.java)
-            if(jogo.getVencedor() == Peca.PRETA) {
-                resposta.put("vencedor","pretas")
-                intent.putExtra(GameOverActivity.vencedor, jogadorUm)
-            }
-            else {
-                resposta.put("vencedor","brancas")
-                intent.putExtra(GameOverActivity.vencedor, jogadorDois)
-            }
-            enviaMensagem(resposta)
-            startActivity(intent)
+            terminaJogo()
         }
-        else
-            resposta.put("final","false")
-        enviaMensagem(resposta)
+
         apagaJogadas()
         proximoJogador()
         mostraJogadas()
         verificaJogadaPossivel(jogadorAtual)
+
+        val resposta = JSONObject()
+        resposta.put("assunto","jogada")
+        resposta.put("vez","server")
+        resposta.put("mudancas",getPosJsonArray(lista))
+        resposta.put("jogadas",getPosJsonArray(jogo.getPosicoesValidas(Peca.PRETA)))
+        if(isSemJogadas)
+            resposta.put("semjogadas","true")
+        else
+            resposta.put("semjogadas","false")
+        enviaMensagem(resposta)
     }
 
     fun setBombaClient(mensagem: JSONObject) {
@@ -324,58 +378,114 @@ class TwoServerActivity : AppCompatActivity() {
     }
 
     fun onClickPosicao(fila:Int, coluna:Int){
+        Log.d("TagCheck","onClick em fila: "+fila+" coluna: "+coluna)
         val novaPosicao = Posicao(fila, coluna, jogadorAtual)
-
         if(!jogo.isPosicaoValida(novaPosicao))
             return
 
-        jogo.getListasValidas(novaPosicao).plus(novaPosicao).forEach{ setJogada(Posicao(it.fila,it.coluna,jogadorAtual)) }
+        val jogadas = jogo.getListasValidas(novaPosicao).plus(novaPosicao)
+        jogadas.forEach{ setJogada(Posicao(it.fila,it.coluna,jogadorAtual)) }
 
         if(jogo.isFinalJogo()){
-            val intent = Intent(this,GameOverActivity::class.java)
-            if(jogo.getVencedor() == Peca.PRETA)
-                intent.putExtra(GameOverActivity.vencedor, jogadorUm)
-            else
-                intent.putExtra(GameOverActivity.vencedor, jogadorDois)
-            startActivity(intent)
+            terminaJogo()
         }
         apagaJogadas()
         proximoJogador()
         mostraJogadas()
         verificaJogadaPossivel(jogadorAtual)
+
+        val mensagem = JSONObject()
+        mensagem.put("assunto","jogada")
+        mensagem.put("vez","client")
+        mensagem.put("mudancas",getPosJsonArray(jogadas))
+        mensagem.put("jogadas",getPosJsonArray(jogo.getPosicoesValidas(Peca.BRANCA)))
+        if(isSemJogadas)
+            mensagem.put("semjogadas","true")
+        else
+            mensagem.put("semjogadas","false")
+        enviaMensagem(mensagem)
     }
 
-    fun onClickBomba(fila:Int, coluna:Int){
+    private fun terminaJogo() {
+        val intent = Intent(this,GameOverActivity::class.java)
+        val mensagem = JSONObject()
+        mensagem.put("assunto","final")
+        if(jogo.getVencedor() == Peca.PRETA) {
+            intent.putExtra(GameOverActivity.vencedor, jogadorUm)
+            mensagem.put("vencedor","pretas")
+        }
+        else {
+            intent.putExtra(GameOverActivity.vencedor, jogadorDois)
+            mensagem.put("vencedor","brancas")
+        }
+        enviaMensagem(mensagem)
+        startActivity(intent)
+    }
+
+    private fun onClickBomba(fila:Int, coluna:Int){
         buttonFlag = 0
-        val novaPosicao = Posicao(fila, coluna, jogadorAtual)
+        val novaPosicao = Posicao(fila, coluna, Peca.PRETA)
         setJogada(novaPosicao)
-        jogo.setBomba(novaPosicao).forEach { listaPosicoes[it.fila][it.coluna].setImageDrawable(null) }
+        val jogadas = jogo.setBomba(novaPosicao)
+        jogadas.forEach { listaPosicoes[it.fila][it.coluna].setImageDrawable(null) }
 
         apagaJogadas()
         proximoJogador()
         mostraJogadas()
         verificaJogadaPossivel(jogadorAtual)
+
+        if(jogo.isFinalJogo()){
+            terminaJogo()
+        }
+
+        val mensagem = JSONObject()
+        mensagem.put("assunto","bomba")
+        mensagem.put("centrofila",fila)
+        mensagem.put("centrocoluna",coluna)
+        mensagem.put("centropeca","preta")
+        mensagem.put("vez","client")
+        mensagem.put("mudancas",getPosJsonArray(jogadas))
+        mensagem.put("jogadas",getPosJsonArray(jogo.getPosicoesValidas(Peca.BRANCA)))
+        if(isSemJogadas)
+            mensagem.put("semjogadas","true")
+        else
+            mensagem.put("semjogadas","false")
+        enviaMensagem(mensagem)
     }
 
     fun onClickTroca(fila: Int, coluna: Int){
-        if(jogo.getPeca(fila,coluna) == jogadorAtual && nTrocaPecas < 2){
-            if(jogo.getPeca(fila,coluna)==Peca.BRANCA)
-                listaPosicoes[fila][coluna].setImageResource(R.drawable.black_stone)
-            else
-                listaPosicoes[fila][coluna].setImageResource(R.drawable.white_stone)
+        if(jogo.getPeca(fila,coluna) == Peca.PRETA && nTrocaPecas < 2){
+            listaPosicoes[fila][coluna].setImageResource(R.drawable.white_stone)
             nTrocaPecas++
+            val mensagem = JSONObject()
+            mensagem.put("assunto","troca")
+            mensagem.put("fila",fila)
+            mensagem.put("coluna",coluna)
+            mensagem.put("peca","branca")
+            enviaMensagem(mensagem)
         }
-        if(jogo.getPeca(fila,coluna) == jogadorAtual.proximo() && nTrocaPecas == 2){
-            if(jogo.getPeca(fila,coluna)==Peca.BRANCA)
-                listaPosicoes[fila][coluna].setImageResource(R.drawable.black_stone)
-            else
-                listaPosicoes[fila][coluna].setImageResource(R.drawable.white_stone)
+        else if(jogo.getPeca(fila,coluna) == Peca.BRANCA && nTrocaPecas == 2){
+            listaPosicoes[fila][coluna].setImageResource(R.drawable.black_stone)
             nTrocaPecas = 0
             apagaJogadas()
             proximoJogador()
             mostraJogadas()
             verificaJogadaPossivel(jogadorAtual)
             buttonFlag = 0
+            val jogada = List<Posicao>(1){Posicao(fila,coluna,Peca.PRETA)}
+            val mensagem = JSONObject()
+            mensagem.put("assunto","jogada")
+            mensagem.put("vez","client")
+            mensagem.put("mudancas",getPosJsonArray(jogada))
+            mensagem.put("jogadas",getPosJsonArray(jogo.getPosicoesValidas(Peca.BRANCA)))
+            if(isSemJogadas)
+                mensagem.put("semjogadas","true")
+            else
+                mensagem.put("semjogadas","false")
+            enviaMensagem(mensagem)
+        }
+        if(jogo.isFinalJogo()){
+            terminaJogo()
         }
     }
 }

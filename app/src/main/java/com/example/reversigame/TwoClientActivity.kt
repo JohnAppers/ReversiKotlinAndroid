@@ -1,13 +1,18 @@
 package com.example.reversigame
 
 import android.content.DialogInterface
+import android.content.Intent
+import android.opengl.Visibility
 import android.os.Bundle
+import android.os.Handler
 import android.text.InputFilter
 import android.text.Spanned
 import android.util.Log
 import android.util.Patterns
+import android.view.View
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -30,15 +35,15 @@ class TwoClientActivity : AppCompatActivity() {
     lateinit var listaPosicoes : List<List<ImageView>>
 
     var socket: Socket? = null
+    var jogadorUm = ""
     var jogadorDois = ""
     var buttonFlag = 0
-    var connectFlag = false
+    var isConnected = false
     var mostrarJogadas = true
-    var minhaVez = false
-    var threadComm: Thread? = null
-    var listaJogadas: MutableList<Posicao> = mutableListOf()
+    var isMinhaVez = false
+    var isGameOver = false
     var listaMudancas: MutableList<Posicao> = mutableListOf()
-
+    var listaJogadas: MutableList<Posicao> = mutableListOf()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,13 +56,13 @@ class TwoClientActivity : AppCompatActivity() {
             arrayOfNulls<ImageView>(8).mapIndexed { coluna, imageButton ->
                 val posicao = layoutInflater.inflate(R.layout.posicao,null)
                 posicao.setOnClickListener {
-                    if(buttonFlag==0 && connectFlag && minhaVez){
+                    if(buttonFlag==0 && isConnected && isMinhaVez){
                         onClickPosicao(fila, coluna)
                     }
-                    if(buttonFlag==1 && connectFlag && minhaVez){
+                    if(buttonFlag==1 && isConnected && isMinhaVez){
                         onClickBomba(fila,coluna)
                     }
-                    if(buttonFlag==2 && connectFlag && minhaVez){
+                    if(buttonFlag==2 && isConnected && isMinhaVez){
                         onClickTroca(fila,coluna)
                     }
                 }
@@ -76,6 +81,117 @@ class TwoClientActivity : AppCompatActivity() {
         }
 
         setupDialogo()
+    }
+
+    private fun leMensagens() {
+        thread{
+            val bufferIn = socket!!.getInputStream().bufferedReader()
+            var mensagem: JSONObject
+            var mensagemString : String
+            while(!isGameOver){
+                mensagemString = bufferIn.readLine()
+                mensagem = JSONObject(mensagemString)
+                if(mensagem["assunto"].equals("setup")){
+                    jogadorDois = mensagem["nome"].toString()
+                    checkVez(mensagem)
+                    checkMudancas(mensagem)
+                    checkJogadas(mensagem)
+                }
+                else if(mensagem["assunto"].equals("jogada")){
+                    checkVez(mensagem)
+                    checkMudancas(mensagem)
+                    checkJogadas(mensagem)
+                }
+                else if(mensagem["assunto"].equals("final")){
+                    if(mensagem["vencedor"].equals("pretas"))
+                        terminaJogo(jogadorDois)
+                    else
+                        terminaJogo(jogadorUm)
+                }
+                else if(mensagem["assunto"].equals("troca")){
+                    if(mensagem["peca"].equals("preta"))
+                        setJogada(Posicao(mensagem.getInt("fila"),mensagem.getInt("coluna"),Peca.PRETA))
+                    else
+                        setJogada(Posicao(mensagem.getInt("fila"),mensagem.getInt("coluna"),Peca.BRANCA))
+                }
+                else if(mensagem["assunto"].equals("bomba")){
+                    val jogadas = mensagem.getJSONArray("mudancas")
+                    listaMudancas.clear()
+                    for(pos in 0 until jogadas.length()){
+                        val posicao = jogadas.getJSONObject(pos)
+                        val filaNova = posicao.getInt("fila")
+                        val colunaNova = posicao.getInt("coluna")
+                        listaMudancas.add(Posicao(filaNova,colunaNova,Peca.VAZIA))
+                    }
+                    listaMudancas.forEach{ setJogada(it) }
+                    if(mensagem["centropeca"].equals("preta"))
+                        setJogada(Posicao(mensagem.getInt("centrofila"),mensagem.getInt("centrocoluna"),Peca.PRETA))
+                    else
+                        setJogada(Posicao(mensagem.getInt("centrofila"),mensagem.getInt("centrocoluna"),Peca.BRANCA))
+                    checkVez(mensagem)
+                    checkJogadas(mensagem)
+                }
+            }
+        }
+    }
+
+    private fun terminaJogo(player: String){
+        val intent = Intent(this,GameOverActivity::class.java)
+        intent.putExtra(GameOverActivity.vencedor, player)
+        startActivity(intent)
+    }
+
+    private fun checkJogadas(mensagem: JSONObject) {
+        this@TwoClientActivity.runOnUiThread(Runnable {
+            if(mensagem["semjogadas"].equals("true")){
+                b.btnPassarVez.visibility = View.VISIBLE
+            }
+            else{
+                b.btnPassarVez.visibility = View.GONE
+                val jogadas = mensagem.getJSONArray("jogadas")
+                listaJogadas.clear()
+                for(pos in 0 until jogadas.length()){
+                    val posicao = jogadas.getJSONObject(pos)
+                    val filaNova = posicao.getInt("fila")
+                    val colunaNova = posicao.getInt("coluna")
+                    listaJogadas.add(Posicao(filaNova,colunaNova,Peca.BRANCA))
+                }
+                if(mostrarJogadas) {
+                    apagaJogadas()
+                    mostraJogadas()
+                }
+            }
+        })
+    }
+
+    private fun checkMudancas(mensagem: JSONObject) {
+        val jogadas = mensagem.getJSONArray("mudancas")
+        listaMudancas.clear()
+        for(pos in 0 until jogadas.length()){
+            val posicao = jogadas.getJSONObject(pos)
+            val filaNova = posicao.getInt("fila")
+            val colunaNova = posicao.getInt("coluna")
+            var peca : Peca
+            if(posicao.getString("peca").equals("branca"))
+                peca = Peca.BRANCA
+            else
+                peca = Peca.PRETA
+            listaMudancas.add(Posicao(filaNova,colunaNova,peca))
+
+        }
+        listaMudancas.forEach{ setJogada(it) }
+    }
+
+    private fun checkVez(mensagem: JSONObject) {
+        if(mensagem["vez"].equals("client")) {
+            isMinhaVez = true
+            Log.d("TagCheck", "Cliente a jogar.")
+        }
+        else {
+            isMinhaVez = false
+            Log.d("TagCheck", "Servidor a jogar.")
+        }
+        setStringJogador()
     }
 
     private fun setupDialogo(){
@@ -117,7 +233,7 @@ class TwoClientActivity : AppCompatActivity() {
                 }
             }
             setNeutralButton(getString(R.string.btn_emulator)) { _: DialogInterface, _: Int ->
-                iniciaCliente("10.0.2.16", SERVER_PORT-1)
+                iniciaCliente("10.0.2.2", SERVER_PORT-1)
             }
             setNegativeButton(getString(R.string.button_cancel)) { _: DialogInterface, _: Int ->
                 finish()
@@ -130,80 +246,78 @@ class TwoClientActivity : AppCompatActivity() {
     }
 
     private fun iniciaCliente(ip: String, port: Int = SERVER_PORT-1) {
-        thread{
-            try {
+        try {
+            thread{
                 socket = Socket()
-                socket!!.connect(InetSocketAddress(ip,port),5000)
-                connectFlag = true
+                Log.d("TagCheck","A conetar a servidor...")
+                socket!!.connect(InetSocketAddress(ip, port), 5000)
+                isConnected = true
                 enviaNome()
-            } catch (e: Exception) {
-                Log.e("SocketError", ""+e)
             }
+        } catch (e: Exception) {
+            Log.e("TagSocketError", "Falha ao abrir socket: "+e)
         }
     }
 
-    fun enviaNome(){
+    private fun enviaNome(){
         socket!!.getOutputStream()?.run {
-            thread {
-                try {
-                    val printStream = PrintStream(this)
-                    val json = JSONObject()
-                    json.put("nome", "playerdois") // TODO enviar nome
-                    printStream.println(json.toString())
-                    printStream.flush()
-                    Log.d("TagCheck","Nome enviado")
-                } catch (e: Exception) {
-                    Log.d("TagSocketError", e.toString())
-                }
+            try {
+                val printStream = PrintStream(this)
+                val json = JSONObject()
+                json.put("nome", "playerdois") // TODO enviar nome
+                printStream.println(json.toString())
+                printStream.flush()
+                Log.d("TagCheck","Nome enviado")
+                leMensagens()
+            } catch (e: Exception) {
+                Log.d("TagSocketError", e.toString())
             }
         }
     }
 
-    fun apagaJogadas(){
+    private fun apagaJogadas(){
         listaPosicoes.flatMap { it }.forEach{ it.setBackgroundColor(ContextCompat.getColor(this, R.color.purple_700)) }
     }
 
-    fun mostraJogadas(){
+    private fun mostraJogadas(){
         listaJogadas.forEach {
             listaPosicoes[it.fila][it.coluna].setBackgroundColor(ContextCompat.getColor(this, R.color.purple_500))
         }
     }
 
-    fun verificaCondicoes(mensagem: JSONObject){
-        //TODO jogadasPossiveis, semJogadas
+    private fun setStringJogador(){
+        this@TwoClientActivity.runOnUiThread(Runnable {
+            if(isMinhaVez)
+                findViewById<TextView>(R.id.tvJogador).text = getString(R.string.jogador_atual, jogadorUm)
+            else
+                findViewById<TextView>(R.id.tvJogador).text = getString(R.string.jogador_atual, jogadorDois)
+        })
     }
 
-    fun setJogada(pos: Posicao){
-         listaPosicoes[pos.fila][pos.coluna].setImageResource(R.drawable.white_stone)
+    private fun setJogada(pos: Posicao){
+        this@TwoClientActivity.runOnUiThread(Runnable {
+            if(pos.peca == Peca.BRANCA)
+                listaPosicoes[pos.fila][pos.coluna].setImageResource(R.drawable.white_stone)
+            else if(pos.peca == Peca.PRETA)
+                listaPosicoes[pos.fila][pos.coluna].setImageResource(R.drawable.black_stone)
+            else
+                listaPosicoes[pos.fila][pos.coluna].setImageDrawable(null)
+        })
     }
 
-    fun onClickPosicao(fila: Int,coluna: Int){
+    private fun onClickPosicao(fila: Int,coluna: Int){
         thread {
             try {
                 val printStream = PrintStream(socket!!.getOutputStream())
                 val json = JSONObject()
+                json.put("assunto", "jogada")
                 json.put("jogada","normal")
                 json.put("fila", fila)
                 json.put("coluna", coluna)
                 printStream.println(json.toString())
                 printStream.flush()
-
-                val bufferIn = socket!!.getInputStream().bufferedReader()
-                val mensagem = JSONObject(bufferIn.readLine())
-                if(mensagem["valida"].toString().equals("true")){
-                    val jogadas = mensagem.getJSONArray("jogadas")
-                    listaMudancas.clear()
-                    for(pos in 0 until jogadas.length()){
-                        val posicao = jogadas.getJSONObject(pos)
-                        val filaNova = posicao.getInt("fila")
-                        val colunaNova = posicao.getInt("coluna")
-                        listaMudancas.add(Posicao(filaNova,colunaNova,Peca.BRANCA))
-                    }
-                    listaMudancas.forEach{ setJogada(it) }
-                }
-                verificaCondicoes(mensagem)
             } catch (_: Exception) {
-                Log.d("Erro", "onClickPosicao falhou")
+                Log.d("TagError", "onClickPosicao falhou")
             }
         }
     }

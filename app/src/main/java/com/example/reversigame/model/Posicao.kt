@@ -1,3 +1,5 @@
 package com.example.reversigame.model
 
-data class Posicao(val fila: Int, val coluna: Int, var peca: Peca) {}
+import java.io.Serializable
+
+data class Posicao(val fila: Int, val coluna: Int, var peca: Peca) : Serializable{}
