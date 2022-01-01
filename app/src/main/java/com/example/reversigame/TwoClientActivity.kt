@@ -50,7 +50,7 @@ class TwoClientActivity : AppCompatActivity() {
         val view = b.root
         setContentView(view)
 
-        jogadorDois = intent.getStringExtra(MainActivity.jogadorUm).toString()
+        jogadorUm = intent.getStringExtra(MainActivity.jogadorUm).toString()
         listaPosicoes = arrayOfNulls<List<ImageView>>(8).mapIndexed { fila, _ ->
             arrayOfNulls<ImageView>(8).mapIndexed { coluna, _ ->
                 val posicao = layoutInflater.inflate(R.layout.posicao,null)

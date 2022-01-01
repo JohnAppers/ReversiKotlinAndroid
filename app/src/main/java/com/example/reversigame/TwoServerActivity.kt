@@ -319,6 +319,7 @@ class TwoServerActivity : AppCompatActivity() {
                         mensagem = JSONObject(mensagemString)
                         jogadorDois = mensagem["nome"].toString()
                         Log.d("TagCheck", "Nome recebido: $jogadorDois")
+                        setStringJogador()
                         dlg?.dismiss()
                         continue
                     }

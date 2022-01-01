@@ -120,7 +120,7 @@ class MainActivity : AppCompatActivity() {
         if(jogadorAtual == Peca.PRETA)
             findViewById<TextView>(R.id.tvJogador).text = getString(R.string.jogador_atual, jogadorUm)
         else
-            findViewById<TextView>(R.id.tvJogador).text = getString(R.string.jogador_atual,"dois")
+            findViewById<TextView>(R.id.tvJogador).text = getString(R.string.jogador_atual,"convidado")
     }
 
     private fun proximoJogador(){
@@ -183,7 +183,7 @@ class MainActivity : AppCompatActivity() {
             if(jogo.getVencedor() == Peca.PRETA)
                 intent.putExtra(GameOverActivity.vencedor, jogadorUm)
             else
-                intent.putExtra(GameOverActivity.vencedor, "dois")
+                intent.putExtra(GameOverActivity.vencedor, "convidado")
             startActivity(intent)
         }
         apagaJogadas()

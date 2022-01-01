@@ -1,5 +1,5 @@
 <resources>
-    <string name="jogador_atual">"Vez das pecas %1$s jogarem."</string>
+    <string name="jogador_atual">"Vez do jogador %1$s."</string>
     <string name="frase_vencedor">"O jogador %1$s ganhou!"</string>
     <string name="app_name">"Reversi Othello"</string>
     <string name="msg_ip_address">IP do servidor: %s\nÀ espera dos jogadores…</string>
@@ -23,4 +23,9 @@
     <string name="cliente">Cliente</string>
     <string name="modo_remoto_3_jogadores">Modo remoto 3 jogadores</string>
     <string name="gamelogo">logoJogo</string>
+    <string name="editar_nome">Editar nome</string>
+    <string name="editar_foto">Editar foto</string>
+    <string name="nome_jogador">Editar nome de jogador</string>
+    <string name="ask_name">Insira um nome:</string>
+    <string name="tirar_foto">Tirar foto</string>
 </resources>
