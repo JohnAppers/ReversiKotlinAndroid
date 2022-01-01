@@ -439,7 +439,7 @@ class TwoServerActivity : AppCompatActivity() {
         val fila = mensagem.getInt("fila")
         val coluna = mensagem.getInt("coluna")
 
-        if(trocaPecasBrancas == 1){
+        if(trocaPecasBrancas > 1){
             if(jogo.getPeca(fila,coluna) == Peca.PRETA)
                 return
             listaPosicoes[fila][coluna].setImageResource(R.drawable.black_stone)
